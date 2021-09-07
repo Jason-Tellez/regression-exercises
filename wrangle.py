@@ -15,7 +15,7 @@ def get_connection(db, user=user, host=host, password=password):
     '''
     return f'mysql+pymysql://{user}:{password}@{host}/{db}'
 
-    
+
 ################### Create new dataframe from SQL db ###################
     
 def new_zillow_data():
@@ -121,7 +121,7 @@ def remove_outliers(df):
     return df
 
 
-################### Final Funciton ###################
+################### Split the data ###################
 
 def split_data(df):
     """
@@ -130,11 +130,9 @@ def split_data(df):
     train_validate, test = train_test_split(df, 
                                             test_size=.1, 
                                             random_state=123)
-
     train, validate = train_test_split(train_validate, 
                                         test_size=.2, 
                                         random_state=123)
-                                        
     return train, validate, test
 
 
