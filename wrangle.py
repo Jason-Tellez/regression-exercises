@@ -3,6 +3,7 @@ from env import host, user, password
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+import sklearn.preprocessing
 
 
 ################### Connects to Sequel Ace using credentials ###################
@@ -92,7 +93,7 @@ def clean_zillow(df):
     df = df.rename(columns={'bedroomcnt': 'bed',
                        'bathroomcnt': 'bath',
                        'calculatedfinishedsquarefeet': 'sqft',
-                       'taxvaluedollarcnt': 'tot_tax',
+                       'taxvaluedollarcnt': 'prop_value',
                        'yearbuilt': 'year',
                        'taxamount': 'prop_tax',
                        'fips': 'zip'})
@@ -136,20 +137,6 @@ def split_data(df):
     return train, validate, test
 
 
-################### Final Funciton ###################
-
-def wrangle_zillow():
-    """
-    Automates all functions contained within module
-    """
-    df = get_zillow_data()
-    df = clean_zillow(df)
-    df = remove_outliers(df)
-    train, validate, test = split_data(df)
-
-    return train, validate, test
-
-
 ################### Min-max Scaling ###################
 
 def minmax_scaler(train, validate, test):
@@ -181,4 +168,19 @@ def minmax_scaler(train, validate, test):
     minmax_validate[x] = scaled_zillow_validate
     minmax_test[x] = scaled_zillow_test
     
+    return minmax_train, minmax_validate, minmax_test
+
+
+################### Final Funciton ###################
+
+def wrangle_zillow():
+    """
+    Automates all functions contained within module
+    """
+    df = get_zillow_data()
+    df = clean_zillow(df)
+    df = remove_outliers(df)
+    train, validate, test = split_data(df)
+    minmax_train, minmax_validate, minmax_test = minmax_scaler(train, validate, test)
+
     return minmax_train, minmax_validate, minmax_test
