@@ -175,12 +175,11 @@ def minmax_scaler(train, validate, test):
 
 def wrangle_zillow():
     """
-    Automates all functions contained within module
+    Automates all functions contained within module (Unscaled)
     """
     df = get_zillow_data()
     df = clean_zillow(df)
     df = remove_outliers(df)
     train, validate, test = split_data(df)
-    minmax_train, minmax_validate, minmax_test = minmax_scaler(train, validate, test)
 
-    return minmax_train, minmax_validate, minmax_test
+    return train, validate, test
