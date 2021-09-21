@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import sklearn.preprocessing
+from sklearn.impute import SimpleImputer
 
 
 ################### Connects to Sequel Ace using credentials ###################
@@ -78,16 +79,20 @@ def clean_zillow(df):
         - renames all columns
     """
     
-    # Drops null values
-    df.dropna(axis=0, inplace=True)
+    # Drops rows with null values for target variable
+    df.dropna(subset=['taxvaluedollarcnt'], inplace=True)
     
-    # Drops duplicates rows
+    # Drop duplicates rows
     df.drop_duplicates(inplace=True)
+        
+    # impute mean values    
+    mean_values = df.mean(axis=0)
+    train_df_new = df.fillna(mean_values, inplace=True)
     
     # Changes datatypes
     df['bedroomcnt'] = df.bedroomcnt.astype(int)  # from float to int
     df['yearbuilt'] = df.yearbuilt.astype(int)  # from float to int
-    df['fips'] = '0' + df.fips.astype(int).astype(str)  # changes fips to int, then string, then adds '0' to front
+    df['fips'] = ('0' + df.fips.astype(str)).astype(float)  # changes fips to int, then string, then adds '0' to front
     
     # Rename columns
     df = df.rename(columns={'bedroomcnt': 'bed',
@@ -97,10 +102,25 @@ def clean_zillow(df):
                        'yearbuilt': 'year',
                        'taxamount': 'prop_tax',
                        'fips': 'zip'})
-
     return df
 
 
+################### Impute mean values ###################
+
+def imp_mean(train, validate, test):
+    # Create the SimpleImputer object
+    imputer = SimpleImputer(missing_values = None, strategy='mean')
+    
+    # Fit the imputer to the columns in the training df
+    imputer = imputer.fit(train[['bed','bath','sqft','year','prop_tax']])
+          
+    # Transform the data
+    train[['bed','bath','sqft','year','prop_tax']] = imputer.transform(train[['bed','bath','sqft','year','prop_tax']])
+    validate[['bed','bath','sqft','year','prop_tax']] = imputer.transform(validate[['bed','bath','sqft','year','prop_tax']])
+    test[['bed','bath','sqft','year','prop_tax']] = imputer.transform(test[['bed','bath','sqft','year','prop_tax']])
+    return train, validate, test                                                        
+
+                                                                 
 ################### Remove outliers ###################
 
 def remove_outliers(df):
@@ -118,7 +138,6 @@ def remove_outliers(df):
         LB = Q1 - 1.5 * IQR
         # drops rows with column data greater than 
         df = df[(df[col] <= UB) & (df[col] >= LB)]
-
     return df
 
 
@@ -165,13 +184,25 @@ def minmax_scaler(train, validate, test):
 
     # assign the scaled values as new columns in the datasets
     minmax_train[x] = scaled_zillow_train
-    minmax_validate[x] = scaled_zillow_validate
-    minmax_test[x] = scaled_zillow_test
+    minmax_train = minmax_train[minmax_train.columns[7:]]
     
+    minmax_validate[x] = scaled_zillow_validate
+    minmax_validate = minmax_validate[minmax_validate.columns[7:]]
+    
+    minmax_test[x] = scaled_zillow_test
+    minmax_test = minmax_test[minmax_test.columns[7:]]
     return minmax_train, minmax_validate, minmax_test
 
 
-################### Final Funciton ###################
+################### X, y split Funciton ###################
+
+def Xy_split(train, validate, test, minmax_train, minmax_validate, minmax_test):
+    X_exp, y_train, y_validate, y_test = train.drop(columns='prop_value'), train.prop_value, validate.prop_value, test.prop_value
+    X_train, X_validate, x_test = minmax_train, minmax_validate, minmax_test
+    return X_exp, X_train, X_validate, x_test, y_train, y_validate, y_test
+
+
+################### Wrangle Funciton ###################
 
 def wrangle_zillow():
     """
@@ -179,7 +210,12 @@ def wrangle_zillow():
     """
     df = get_zillow_data()
     df = clean_zillow(df)
-    df = remove_outliers(df)
+    df = remove_outliers(df)  
     train, validate, test = split_data(df)
+    #imp_train, imp_validate, imp_test = imp_mean(train, validate, test)                                                         
+    minmax_train, minmax_validate, minmax_test = minmax_scaler(train, validate, test)
+    X_exp, X_train, X_validate, x_test, y_train, y_validate, y_test = Xy_split(train, validate, test, minmax_train, minmax_validate, minmax_test)
+    return df, X_exp, X_train, X_validate, x_test, y_train, y_validate, y_test
 
-    return train, validate, test
+
+################### Split Scaled and Target ###################
